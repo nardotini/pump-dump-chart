@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pump or Dump - Live Chart</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -411,7 +411,7 @@
             document.getElementById('demoMode').style.display = 'block';
         }
 
-        // WebSocket connection - UPDATE THIS URL TO YOUR SERVER
+        // WebSocket connection
         let ws = null;
         let chart = null;
         let demoMode = false;
@@ -427,37 +427,51 @@
 
         // Chart initialization
         function initChart() {
-            const ctx = document.getElementById('priceChart').getContext('2d');
+            console.log('🎯 Initializing chart...');
             
+            if (typeof Chart === 'undefined') {
+                console.error('❌ Chart.js not loaded!');
+                return false;
+            }
+            
+            const ctx = document.getElementById('priceChart').getContext('2d');
             const data = generateChartData();
             
-            chart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: data.labels,
-                    datasets: [{
-                        label: 'Price',
-                        data: data.values,
-                        borderColor: '#4ecdc4',
-                        backgroundColor: 'rgba(78, 205, 196, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 0,
-                        pointHoverRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { display: false },
-                        y: { display: false }
+            try {
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: 'Price',
+                            data: data.values,
+                            borderColor: '#4ecdc4',
+                            backgroundColor: 'rgba(78, 205, 196, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0,
+                            pointHoverRadius: 4
+                        }]
                     },
-                    animation: { duration: 0 }
-                }
-            });
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { display: false },
+                            y: { display: false }
+                        },
+                        animation: { duration: 0 }
+                    }
+                });
+                
+                console.log('✅ Chart initialized successfully');
+                return true;
+            } catch (error) {
+                console.error('❌ Chart initialization error:', error);
+                return false;
+            }
         }
 
         function generateChartData() {
@@ -477,30 +491,28 @@
         }
 
         function connectWebSocket() {
-            // Try multiple WebSocket URLs
             const wsUrls = [
-                'ws://localhost:8765',     // Local development
-                'ws://127.0.0.1:8765',    // Alternative local
-                'wss://your-server.com:8765' // Replace with your production server
+                'ws://localhost:8765',
+                'ws://127.0.0.1:8765'
             ];
             
             let urlIndex = 0;
             
             function tryConnect() {
                 if (urlIndex >= wsUrls.length) {
-                    console.log('🎭 All WebSocket URLs failed - entering demo mode');
+                    console.log('🎭 Entering demo mode...');
                     enterDemoMode();
                     return;
                 }
                 
                 const wsUrl = wsUrls[urlIndex];
-                console.log(`🔌 Trying to connect to: ${wsUrl}`);
+                console.log(`🔌 Trying: ${wsUrl}`);
                 
                 try {
                     ws = new WebSocket(wsUrl);
                     
                     ws.onopen = function() {
-                        console.log('✅ Connected to game server');
+                        console.log('✅ WebSocket connected');
                         updateConnectionStatus(true);
                         demoMode = false;
                         document.getElementById('demoMode').style.display = 'none';
@@ -512,21 +524,20 @@
                     };
                     
                     ws.onclose = function() {
-                        console.log('❌ Disconnected from game server');
+                        console.log('❌ WebSocket disconnected');
                         updateConnectionStatus(false);
                         urlIndex++;
                         setTimeout(tryConnect, 2000);
                     };
                     
                     ws.onerror = function(error) {
-                        console.error('WebSocket error:', error);
-                        updateConnectionStatus(false);
+                        console.log('❌ WebSocket error');
                         urlIndex++;
                         setTimeout(tryConnect, 1000);
                     };
                     
                 } catch (error) {
-                    console.error('Failed to create WebSocket:', error);
+                    console.error('❌ WebSocket creation failed:', error);
                     urlIndex++;
                     setTimeout(tryConnect, 1000);
                 }
@@ -536,20 +547,21 @@
         }
 
         function enterDemoMode() {
-            console.log('🎭 Entering demo mode with simulated data');
+            console.log('🎭 Starting demo mode...');
             demoMode = true;
             document.getElementById('demoMode').style.display = 'block';
             updateConnectionStatus(false);
             
-            // Start demo simulation
             startDemoSimulation();
         }
 
         function startDemoSimulation() {
+            console.log('🎬 Demo simulation starting...');
             let demoRound = 1;
             
             function runDemoRound() {
-                // Simulate round start
+                console.log(`🎲 Demo Round ${demoRound} starting`);
+                
                 gameState = {
                     round: demoRound,
                     phase: 'betting',
@@ -563,15 +575,14 @@
                 updateDisplay();
                 document.getElementById('chartContainer').className = 'chart-container betting-phase';
                 
-                // Simulate bets coming in
+                // Simulate bets
                 let betCount = 0;
-                const maxBets = Math.floor(Math.random() * 8) + 2; // 2-10 bets
+                const maxBets = Math.floor(Math.random() * 8) + 2;
                 
                 const bettingInterval = setInterval(() => {
                     if (betCount < maxBets && gameState.timeLeft > 5) {
-                        // Random bet
                         const betType = Math.random() > 0.5 ? 'PUMP' : 'DUMP';
-                        const amount = (Math.random() * 0.9 + 0.1).toFixed(1); // 0.1-1.0 SOL
+                        const amount = (Math.random() * 0.9 + 0.1).toFixed(1);
                         
                         if (betType === 'PUMP') {
                             gameState.pumpPot += parseFloat(amount);
@@ -596,7 +607,7 @@
                         
                         betCount++;
                     }
-                }, Math.random() * 3000 + 1000); // Random bet timing
+                }, Math.random() * 3000 + 1000);
                 
                 // Countdown timer
                 const timerInterval = setInterval(() => {
@@ -607,13 +618,11 @@
                         clearInterval(timerInterval);
                         clearInterval(bettingInterval);
                         
-                        // Start revealing phase
                         gameState.phase = 'revealing';
                         updateDisplay();
                         document.getElementById('chartContainer').className = 'chart-container revealing-phase';
                         startRevealAnimation();
                         
-                        // Show result after 5 seconds
                         setTimeout(() => {
                             const result = Math.random() > 0.5 ? 'PUMP' : 'DUMP';
                             showResult(result);
@@ -622,7 +631,6 @@
                             updateDisplay();
                             document.getElementById('chartContainer').className = 'chart-container';
                             
-                            // Next round
                             demoRound++;
                             setTimeout(runDemoRound, 3000);
                         }, 5000);
@@ -630,97 +638,12 @@
                 }, 1000);
             }
             
-            // Start first demo round
             setTimeout(runDemoRound, 2000);
         }
 
         function handleGameUpdate(data) {
-            switch (data.type) {
-                case 'round_started':
-                    handleRoundStart(data.data);
-                    break;
-                case 'bet_placed':
-                    handleBetPlaced(data.data);
-                    break;
-                case 'betting_closed':
-                    handleBettingClosed(data.data);
-                    break;
-                case 'round_result':
-                    handleRoundResult(data.data);
-                    break;
-                case 'timer_update':
-                    updateTimer(data.data.timeLeft);
-                    break;
-                case 'game_state':
-                    updateGameState(data.data);
-                    break;
-            }
-        }
-
-        function handleRoundStart(data) {
-            gameState = { ...gameState, ...data };
-            updateDisplay();
-            
-            if (chart) {
-                const newData = generateChartData();
-                chart.data.datasets[0].data = newData.values;
-                chart.data.datasets[0].borderColor = '#4ecdc4';
-                chart.update('none');
-            }
-            
-            document.getElementById('chartContainer').className = 'chart-container betting-phase';
-            
-            if (tg?.HapticFeedback) {
-                tg.HapticFeedback.impactOccurred('light');
-            }
-        }
-
-        function handleBetPlaced(data) {
-            gameState.pumpPot = data.pumpPot;
-            gameState.dumpPot = data.dumpPot;
-            gameState.playerCount = data.playerCount;
-            
-            gameState.recentBets.unshift({
-                type: data.bet_type,
-                amount: data.amount,
-                time: new Date().toLocaleTimeString()
-            });
-            
-            if (gameState.recentBets.length > 5) {
-                gameState.recentBets.pop();
-            }
-            
-            updateDisplay();
-            updateRecentBets();
-            
-            if (chart) {
-                moveChart(data.bet_type === 'PUMP' ? 2 : -2);
-            }
-            
-            if (tg?.HapticFeedback) {
-                tg.HapticFeedback.impactOccurred('light');
-            }
-        }
-
-        function handleBettingClosed(data) {
-            gameState.phase = 'revealing';
-            updateDisplay();
-            document.getElementById('chartContainer').className = 'chart-container revealing-phase';
-            startRevealAnimation();
-        }
-
-        function handleRoundResult(data) {
-            gameState.phase = 'waiting';
-            updateDisplay();
-            showResult(data.result);
-            
-            setTimeout(() => {
-                document.getElementById('chartContainer').className = 'chart-container';
-            }, 3000);
-            
-            if (tg?.HapticFeedback) {
-                tg.HapticFeedback.impactOccurred('heavy');
-            }
+            // Handle real WebSocket data here
+            console.log('📨 Received:', data.type);
         }
 
         function updateDisplay() {
@@ -829,39 +752,27 @@
             }, 3000);
         }
 
-        function updateGameState(data) {
-            gameState = { ...gameState, ...data };
-            updateDisplay();
-            updateRecentBets();
-        }
-
         // Initialize everything
         window.addEventListener('load', () => {
-            console.log('🎰 Telegram Web App Chart Loading...');
+            console.log('🚀 Chart loading...');
             
-            initChart();
-            connectWebSocket();
-            
-            // Start chart movement
-            setInterval(() => {
-                if (gameState.phase === 'betting') {
-                    moveChart();
+            setTimeout(() => {
+                const chartReady = initChart();
+                
+                if (chartReady) {
+                    console.log('✅ Chart ready, starting connections...');
+                    connectWebSocket();
+                    
+                    setInterval(() => {
+                        if (gameState.phase === 'betting') {
+                            moveChart();
+                        }
+                    }, 1000);
+                } else {
+                    console.error('❌ Chart failed to initialize');
                 }
             }, 1000);
-            
-            console.log('✅ Chart initialized for Telegram Web App');
         });
-
-        // Handle Telegram Web App events
-        if (tg) {
-            tg.onEvent('mainButtonClicked', function() {
-                console.log('Main button clicked');
-            });
-            
-            tg.onEvent('backButtonClicked', function() {
-                tg.close();
-            });
-        }
     </script>
 </body>
 </html>
