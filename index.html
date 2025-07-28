@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pump or Dump - Live Chart</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            position: relative;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header h1 {
+            font-size: 1.8em;
+            font-weight: bold;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .round-info {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            margin-left: auto;
+        }
+
+        .round-number {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .timer {
+            font-size: 1.6em;
+            font-weight: bold;
+            color: #ff4757;
+            text-shadow: 0 0 10px rgba(255, 71, 87, 0.5);
+        }
+
+        .main-content {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            padding: 20px;
+            height: calc(100vh - 80px);
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 20px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(78, 205, 196, 0.1) 0%, rgba(255, 107, 107, 0.1) 100%);
+            animation: shimmer 3s ease-in-out infinite alternate;
+            pointer-events: none;
+        }
+
+        @keyframes shimmer {
+            0% { opacity: 0.3; }
+            100% { opacity: 0.1; }
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 100%;
+            z-index: 2;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .status-card {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .status-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .status-card h3 {
+            margin-bottom: 15px;
+            color: #ffd700;
+            font-size: 1.3em;
+        }
+
+        .pot-display {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .pot-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .pot-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .pot-item.pump {
+            border-left: 4px solid #4ecdc4;
+        }
+
+        .pot-item.dump {
+            border-left: 4px solid #ff6b6b;
+        }
+
+        .pot-percentage {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        .phase-indicator {
+            text-align: center;
+            padding: 15px;
+            border-radius: 15px;
+            font-weight: bold;
+            font-size: 1.2em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            animation: pulse 2s infinite;
+        }
+
+        .phase-betting {
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            box-shadow: 0 0 20px rgba(78, 205, 196, 0.4);
+        }
+
+        .phase-revealing {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            box-shadow: 0 0 20px rgba(255, 107, 107, 0.4);
+        }
+
+        .phase-waiting {
+            background: linear-gradient(45deg, #ffd700, #f39c12);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .recent-results {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            font-size: 0.9em;
+        }
+
+        .result-pump {
+            border-left: 3px solid #4ecdc4;
+        }
+
+        .result-dump {
+            border-left: 3px solid #ff6b6b;
+        }
+
+        .chart-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .chart-result {
+            font-size: 4em;
+            font-weight: bold;
+            text-shadow: 0 0 30px currentColor;
+            animation: resultPop 1s ease-out;
+        }
+
+        .chart-result.pump {
+            color: #4ecdc4;
+        }
+
+        .chart-result.dump {
+            color: #ff6b6b;
+        }
+
+        @keyframes resultPop {
+            0% {
+                transform: scale(0);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.2);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .floating-particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            animation: float 6s infinite linear;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-10vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                grid-template-rows: 1fr auto;
+            }
+            
+            .header {
+                padding: 10px 15px;
+            }
+            
+            .header h1 {
+                font-size: 1.4em;
+            }
+            
+            .round-info {
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="floating-particles" id="particles"></div>
+    
+    <div class="container">
+        <div class="header">
+            <h1>🎰 Pump or Dump</h1>
+            <div class="round-info">
+                <div class="round-number" id="roundNumber">Round #1</div>
+                <div class="timer" id="timer">20s</div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="chart-container">
+                <div class="chart-overlay" id="chartOverlay" style="display: none;">
+                    <div class="chart-result" id="chartResult"></div>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="priceChart"></canvas>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="status-card">
+                    <div class="phase-indicator" id="phaseIndicator">
+                        Betting Phase
+                    </div>
+                </div>
+
+                <div class="status-card">
+                    <h3>💰 Live Pot</h3>
+                    <div class="pot-display">
+                        <div class="pot-item pump">
+                            <span>📈 PUMP</span>
+                            <div>
+                                <span id="pumpAmount">0.000</span> SOL
+                                <span class="pot-percentage" id="pumpPercent">0%</span>
+                            </div>
+                        </div>
+                        <div class="pot-item dump">
+                            <span>📉 DUMP</span>
+                            <div>
+                                <span id="dumpAmount">0.000</span> SOL
+                                <span class="pot-percentage" id="dumpPercent">0%</span>
+                            </div>
+                        </div>
+                        <div class="pot-item" style="border-left: 4px solid #ffd700;">
+                            <span>👥 Players</span>
+                            <span id="playerCount">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="status-card">
+                    <h3>📊 Recent Results</h3>
+                    <div class="recent-results" id="recentResults">
+                        <!-- Results will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Debug logging
+        console.log('Script starting...');
+        
+        // Chart configuration
+        const ctx = document.getElementById('priceChart').getContext('2d');
+        let chart;
+        let gameState = {
+            round: 1,
+            phase: 'betting', // betting, revealing, waiting
+            timeLeft: 20,
+            pumpPot: 0,
+            dumpPot: 0,
+            playerCount: 0,
+            recentResults: []
+        };
+
+        // Initialize chart
+        function initChart() {
+            console.log('Initializing chart...');
+            
+            try {
+                const data = generateChartData();
+                console.log('Generated chart data:', data);
+                
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: 'Price',
+                            data: data.values,
+                            borderColor: '#4ecdc4',
+                            backgroundColor: 'rgba(78, 205, 196, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0,
+                            pointHoverRadius: 8,
+                            pointBackgroundColor: '#4ecdc4',
+                            pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            x: {
+                                display: false
+                            },
+                            y: {
+                                display: false
+                            }
+                        },
+                        elements: {
+                            point: {
+                                radius: 0
+                            }
+                        },
+                        animation: {
+                            duration: 0 // Disable initial animation
+                        }
+                    }
+                });
+                
+                console.log('Chart initialized successfully:', chart);
+                return true;
+            } catch (error) {
+                console.error('Error initializing chart:', error);
+                return false;
+            }
+        }
+
+        // Generate realistic chart data
+        function generateChartData() {
+            const labels = [];
+            const values = [];
+            let currentPrice = 100;
+            
+            for (let i = 0; i < 50; i++) {
+                labels.push(i);
+                
+                // Add some randomness
+                const change = (Math.random() - 0.5) * 4;
+                currentPrice += change;
+                
+                // Keep price in reasonable range
+                currentPrice = Math.max(50, Math.min(150, currentPrice));
+                values.push(currentPrice);
+            }
+            
+            return { labels, values };
+        }
+
+        // Simple chart movement function
+        function moveChart() {
+            if (!chart) {
+                console.log('Chart not available for movement');
+                return;
+            }
+            
+            try {
+                const currentData = [...chart.data.datasets[0].data];
+                const lastValue = currentData[currentData.length - 1];
+                
+                // Generate next price point
+                const change = (Math.random() - 0.5) * 6;
+                const newValue = Math.max(30, Math.min(170, lastValue + change));
+                
+                // Shift data and add new point
+                currentData.shift();
+                currentData.push(newValue);
+                
+                // Update chart
+                chart.data.datasets[0].data = currentData;
+                
+                // Change color based on movement
+                const isRising = newValue > lastValue;
+                chart.data.datasets[0].borderColor = isRising ? '#4ecdc4' : '#ff6b6b';
+                chart.data.datasets[0].backgroundColor = isRising ? 
+                    'rgba(78, 205, 196, 0.1)' : 'rgba(255, 107, 107, 0.1)';
+                
+                chart.update('none');
+                console.log('Chart moved, new value:', newValue);
+            } catch (error) {
+                console.error('Error moving chart:', error);
+            }
+        }
+
+        // Animate chart with SMOOTHER dramatic movement
+        function animateChart(finalResult) {
+            console.log('Starting smooth dramatic animation for:', finalResult);
+            
+            if (!chart) {
+                console.log('Chart not available for animation');
+                return;
+            }
+            
+            let animationStep = 0;
+            const totalSteps = 15; // Faster animation (was 25)
+            const startData = [...chart.data.datasets[0].data];
+            const startValue = startData[startData.length - 1];
+            
+            const interval = setInterval(() => {
+                try {
+                    const progress = animationStep / totalSteps;
+                    const newData = [...startData];
+                    
+                    // Create SMOOTHER dramatic movement
+                    for (let i = Math.floor(startData.length * 0.8); i < startData.length; i++) {
+                        const baseValue = startData[i];
+                        
+                        // REDUCED random volatility for smoother movement
+                        const randomVolatility = (Math.random() - 0.5) * 8; // Was 15, now 8
+                        
+                        // Smoother trend based on final result
+                        const trendDirection = finalResult === 'PUMP' ? 1 : -1;
+                        const smoothTrend = Math.sin(progress * Math.PI) * 20 * trendDirection; // Smoother curve
+                        
+                        newData[i] = Math.max(30, Math.min(170, baseValue + randomVolatility + smoothTrend));
+                    }
+                    
+                    // Update chart appearance
+                    const finalValue = newData[newData.length - 1];
+                    const isRising = finalValue > startValue;
+                    
+                    chart.data.datasets[0].data = newData;
+                    chart.data.datasets[0].borderColor = isRising ? '#4ecdc4' : '#ff6b6b';
+                    chart.data.datasets[0].backgroundColor = isRising ? 
+                        'rgba(78, 205, 196, 0.2)' : 'rgba(255, 107, 107, 0.2)';
+                    chart.data.datasets[0].borderWidth = 4;
+                    
+                    chart.update('none');
+                    animationStep++;
+                    
+                    if (animationStep >= totalSteps) {
+                        clearInterval(interval);
+                        
+                        // Final SMOOTH movement
+                        const finalData = [...newData];
+                        const finalMove = finalResult === 'PUMP' ? 25 : -25; // Slightly less dramatic
+                        for (let i = Math.floor(finalData.length * 0.9); i < finalData.length; i++) {
+                            const smoothFactor = (i - Math.floor(finalData.length * 0.9)) / (finalData.length * 0.1);
+                            finalData[i] += finalMove * smoothFactor * Math.sin(smoothFactor * Math.PI / 2); // Smooth curve
+                        }
+                        
+                        chart.data.datasets[0].data = finalData;
+                        chart.data.datasets[0].borderWidth = 3;
+                        chart.update();
+                        
+                        showResult(finalResult);
+                    }
+                } catch (error) {
+                    console.error('Error in chart animation:', error);
+                    clearInterval(interval);
+                }
+            }, 150); // Slightly faster updates (was 200ms)
+        }
+
+        // Show result overlay
+        function showResult(result) {
+            console.log('Showing result:', result);
+            const overlay = document.getElementById('chartOverlay');
+            const resultElement = document.getElementById('chartResult');
+            
+            resultElement.textContent = result === 'PUMP' ? '📈 PUMP!' : '📉 DUMP!';
+            resultElement.className = `chart-result ${result.toLowerCase()}`;
+            
+            overlay.style.display = 'block';
+            
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 3000);
+        }
+
+        // Update game state display
+        function updateDisplay() {
+            try {
+                document.getElementById('roundNumber').textContent = `Round #${gameState.round}`;
+                document.getElementById('timer').textContent = `${gameState.timeLeft}s`;
+                
+                // Update pot display
+                const total = gameState.pumpPot + gameState.dumpPot;
+                const pumpPercent = total > 0 ? ((gameState.pumpPot / total) * 100).toFixed(1) : 0;
+                const dumpPercent = total > 0 ? ((gameState.dumpPot / total) * 100).toFixed(1) : 0;
+                
+                document.getElementById('pumpAmount').textContent = gameState.pumpPot.toFixed(3);
+                document.getElementById('dumpAmount').textContent = gameState.dumpPot.toFixed(3);
+                document.getElementById('pumpPercent').textContent = `${pumpPercent}%`;
+                document.getElementById('dumpPercent').textContent = `${dumpPercent}%`;
+                document.getElementById('playerCount').textContent = gameState.playerCount;
+                
+                // Update phase indicator
+                const phaseIndicator = document.getElementById('phaseIndicator');
+                phaseIndicator.className = `phase-indicator phase-${gameState.phase}`;
+                
+                switch(gameState.phase) {
+                    case 'betting':
+                        phaseIndicator.textContent = 'Betting Phase';
+                        break;
+                    case 'revealing':
+                        phaseIndicator.textContent = 'Revealing...';
+                        break;
+                    case 'waiting':
+                        phaseIndicator.textContent = 'Waiting...';
+                        break;
+                }
+            } catch (error) {
+                console.error('Error updating display:', error);
+            }
+        }
+
+        // Create floating particles
+        function createParticles() {
+            console.log('Creating particles...');
+            const container = document.getElementById('particles');
+            
+            setInterval(() => {
+                if (Math.random() < 0.3) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.style.left = Math.random() * 100 + 'vw';
+                    particle.style.animationDelay = Math.random() * 2 + 's';
+                    particle.style.animationDuration = (4 + Math.random() * 4) + 's';
+                    
+                    container.appendChild(particle);
+                    
+                    setTimeout(() => {
+                        particle.remove();
+                    }, 8000);
+                }
+            }, 200);
+        }
+
+        // Simulate game data - FASTER ROUNDS
+        function simulateGameData() {
+            console.log('Starting game simulation...');
+            
+            setInterval(() => {
+                console.log(`Phase: ${gameState.phase}, Time: ${gameState.timeLeft}`);
+                
+                if (gameState.timeLeft > 0) {
+                    gameState.timeLeft--;
+                } else {
+                    // Phase transition
+                    if (gameState.phase === 'betting') {
+                        gameState.phase = 'revealing';
+                        gameState.timeLeft = 15; // REDUCED from 25s to 15s
+                        
+                        // Start chart animation
+                        const result = Math.random() > 0.5 ? 'PUMP' : 'DUMP';
+                        console.log('Starting reveal phase with result:', result);
+                        animateChart(result);
+                        
+                    } else if (gameState.phase === 'revealing') {
+                        gameState.phase = 'waiting';
+                        gameState.timeLeft = 3; // REDUCED from 5s to 3s
+                        
+                        // Add to recent results
+                        const result = Math.random() > 0.5 ? 'PUMP' : 'DUMP';
+                        gameState.recentResults.unshift({
+                            round: gameState.round,
+                            result: result,
+                            pot: (gameState.pumpPot + gameState.dumpPot).toFixed(3)
+                        });
+                        
+                        if (gameState.recentResults.length > 10) {
+                            gameState.recentResults.pop();
+                        }
+                        
+                        updateRecentResults();
+                        
+                    } else if (gameState.phase === 'waiting') {
+                        // Start new round
+                        gameState.round++;
+                        gameState.phase = 'betting';
+                        gameState.timeLeft = 20;
+                        gameState.pumpPot = 0;
+                        gameState.dumpPot = 0;
+                        gameState.playerCount = 0;
+                        
+                        console.log('Starting new round:', gameState.round);
+                        
+                        // Generate new chart data
+                        if (chart) {
+                            const newData = generateChartData();
+                            chart.data.datasets[0].data = newData.values;
+                            chart.data.datasets[0].borderColor = '#4ecdc4';
+                            chart.data.datasets[0].backgroundColor = 'rgba(78, 205, 196, 0.1)';
+                            chart.update();
+                        }
+                    }
+                }
+                
+                // Simulate betting activity
+                if (gameState.phase === 'betting' && Math.random() < 0.4) { // Increased betting frequency
+                    const betAmount = 0.1 + Math.random() * 0.9;
+                    if (Math.random() > 0.5) {
+                        gameState.pumpPot += betAmount;
+                    } else {
+                        gameState.dumpPot += betAmount;
+                    }
+                    gameState.playerCount = Math.floor(Math.random() * 20) + 1; // More players
+                }
+                
+                updateDisplay();
+            }, 1000);
+        }
+
+        // Update recent results display
+        function updateRecentResults() {
+            const container = document.getElementById('recentResults');
+            container.innerHTML = '';
+            
+            gameState.recentResults.forEach(result => {
+                const div = document.createElement('div');
+                div.className = `result-item result-${result.result.toLowerCase()}`;
+                div.innerHTML = `
+                    <span>#${result.round}</span>
+                    <span>${result.result === 'PUMP' ? '📈' : '📉'} ${result.result}</span>
+                    <span>${result.pot} SOL</span>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // Initialize everything
+        window.addEventListener('load', () => {
+            console.log('Page loaded, initializing...');
+            
+            // Check if Chart.js loaded
+            if (typeof Chart === 'undefined') {
+                console.error('Chart.js not loaded!');
+                return;
+            }
+            
+            console.log('Chart.js loaded, version:', Chart.version);
+            
+            // Initialize chart
+            const chartInitialized = initChart();
+            
+            if (chartInitialized) {
+                console.log('Chart initialized, starting systems...');
+                
+                // Start particles
+                createParticles();
+                
+                // Start game simulation
+                setTimeout(() => {
+                    simulateGameData();
+                    updateDisplay();
+                    
+                    // Start continuous chart movement
+                    setInterval(() => {
+                        if (gameState.phase === 'betting') {
+                            moveChart();
+                        }
+                    }, 800); // Move every 800ms
+                    
+                }, 1000);
+                
+            } else {
+                console.error('Failed to initialize chart');
+            }
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (chart) {
+                chart.resize();
+            }
+        });
+
+        // Error handling
+        window.addEventListener('error', (e) => {
+            console.error('JavaScript error:', e.error);
+        });
+    </script>
+</body>
+</html>
