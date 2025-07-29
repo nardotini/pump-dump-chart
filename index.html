@@ -643,9 +643,37 @@
         }
 
         function handleGameUpdate(data) {
-            // Handle real WebSocket data here
-            console.log('📨 Received:', data.type);
-        }
+    console.log('🎯 Processing game update:', data);
+    
+    if (!data || !data.type) {
+        console.log('❌ Invalid message format');
+        return;
+    }
+    
+    switch (data.type) {
+        case 'game_state':
+        case 'connection_confirmed':
+            if (data.data) {
+                updateGameState(data.data);
+            }
+            break;
+            
+        case 'bet_placed':
+            if (data.data) {
+                handleBetPlaced(data.data);
+            }
+            break;
+            
+        case 'round_started':
+            if (data.data) {
+                handleRoundStart(data.data);
+            }
+            break;
+            
+        default:
+            console.log('🤷 Unknown message type:', data.type);
+    }
+}
 
         function updateDisplay() {
             document.getElementById('roundNumber').textContent = `R#${gameState.round}`;
@@ -752,6 +780,19 @@
                 overlay.style.display = 'none';
             }, 3000);
         }
+
+function updateGameState(data) {
+    console.log('📊 Updating game state:', data);
+    
+    if (data.round) gameState.round = data.round;
+    if (data.phase) gameState.phase = data.phase;
+    if (data.timeLeft !== undefined) gameState.timeLeft = data.timeLeft;
+    if (data.pumpPot !== undefined) gameState.pumpPot = data.pumpPot;
+    if (data.dumpPot !== undefined) gameState.dumpPot = data.dumpPot;
+    if (data.playerCount !== undefined) gameState.playerCount = data.playerCount;
+    
+    updateDisplay();
+}
 
         // Initialize everything
         window.addEventListener('load', () => {
